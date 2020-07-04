@@ -1,0 +1,61 @@
+git rm file	删除文件，并连带从工作目录中删除指定的文件
+git rm --cached file	git不跟踪该文件，本地不删除
+git mv	移动文件
+git log 查看历史
+
+修改最后一次提交
+$ git commit -m 'initial commit'
+$ git add forgotten_file
+$ git commit --amend
+
+取消暂存
+git reset HEAD file
+
+取消对文件的修改
+git checkout -- file
+
+添加远程仓库
+git remote add pb git://github.com/paulboone/ticgit.git
+
+抓取但不合并
+git fetch
+
+git push [remote-name] [branch-name]
+
+HEAD 指向当前所在的分支
+
+新建分支
+git branch testing
+
+切换到其他分支
+git checkout testing
+
+git merge branchname
+
+分支维护
+master	develop	topic	proposed	proposed update(pu)	next
+
+
+push
+git push [远程名] [本地分支]:[远程分支]	本地为空则删除远程分支
+
+分支衍合
+git rebase --onto master server client
+
+.gitignore语法
+以斜杠/开头表示目录；
+以星号*通配多个字符；
+以问号?通配单个字符
+以方括号[]包含单个字符的匹配列表；
+以叹号!表示不忽略(跟踪)匹配到的文件或目录；
+
+*.class
+.project
+.classpath
+.settings/
+target/
+
+
+
+
+

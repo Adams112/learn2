@@ -1,0 +1,8 @@
+Controller接收参数方式
+	实体bean接收						public String login(UserForm user)
+	形参接收							String login(String uname,String upass)
+	通过 HttpServletRequest 接收		public String register(HttpServletRequest request)
+	通过 @PathVariable 接收url参数	public String register(@PathVariable String uname,@PathVariable String upass)
+	通过 @RequestParam 接收			public String register(@RequestParam String uname, @RequestParam String upass)
+	通过 @ModelAttribute 接收			public String register(@ModelAttribute("user") UserForm user)
+	
