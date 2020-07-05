@@ -27,5 +27,6 @@
     <module>crypto</module>
     <module>record</module>
     <module>util</module>
+    <module>webdemo</module>
   </modules>
 </project>
