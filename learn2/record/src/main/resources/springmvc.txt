@@ -6,3 +6,112 @@ Controller接收参数方式
 	通过 @RequestParam 接收			public String register(@RequestParam String uname, @RequestParam String upass)
 	通过 @ModelAttribute 接收			public String register(@ModelAttribute("user") UserForm user)
 	
+	
+
+
+
+springmvc
+	mvc全流程		https://zhuanlan.zhihu.com/p/65658315
+	mvc全流程		https://zhuanlan.zhihu.com/p/88255639
+	mvc各流程综述	https://zhuanlan.zhihu.com/p/58354248
+	
+	
+	
+用来装载共享数据的对象，在JavaWeb中共有4个，而且更习惯被成为“域对象”：
+	ServletContext域（Servlet间共享数据）
+	Session域（一次会话间共享数据，也可以理解为多次请求间共享数据）
+	Request域（同一次请求共享数据）
+	Page域（JSP页面内共享数据）
+
+
+Filter拦截的四种类型
+	REQUEST
+	FORWARD
+	INCLUDE
+	ERROR
+	
+	
+@RequestMapping
+	path
+		/new		
+		/{day}		@PathVariable
+		pattern
+			?			"/pages/t?st.html" matches "/pages/test.html" and "/pages/t3st.html"
+			*			"/resources/*.png" matches "/resources/file.png" 
+						"/projects/*/versions" matches "/projects/spring/versions" but does not match "/projects/spring/boot/versions"
+			**			"/resources/**" matches "/resources/file.png" and "/resources/images/file.png"
+			{name}		"/projects/{project}/versions" matches "/projects/spring/versions" and captures project=spring
+			{name:[a-z]+}	"/projects/{project:[a-z]+}/versions" matches "/projects/spring/versions" but not "/projects/spring1/versions"
+							"/{name:[a-z-]+}-{version:\\d\\.\\d\\.\\d}{ext:\\.[a-z]+}"
+		
+		匹配多个path时的优先级：
+			score小的		uri变量：1，*：1，**：2
+			匹配长度更长的
+			通配符少的
+	method
+		get
+		head
+		post
+		put
+		delete
+		patch
+		options
+		trace
+	comsumes	Content-Type
+		"application/json"
+		"!text/plain"
+		...
+	produces	Accept
+		"application/json"
+		"!text/plain"
+		...
+	params		查询参数，请求行上
+		myParam
+		!myParam
+		myParam=myValue
+		!myParam=myValue	
+		...
+	headers		
+		myParam
+		!myParam
+		myParam=myValue
+		!myParam=myValue	
+		...
+
+@RequestParam	查询参数或者表单参数
+	@RequestParam("paramName")
+		get/post方法的查询参数
+		post方法表单，form
+		post方法表单，Content-Type: application/x-www-form-urlencoded
+	@RequestParam Map<String, String> map
+		获取所有查询参数的map
+	@RequestParam("name") String[] names/String names/List<String> names	处理数组
+
+@RequestHeader	获取request header，同RequestParam
+
+@CookieValue	获取cookievalue
+
+@RequestBody	获取请求体
+
+HttpEntity		获取header和body
+
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
