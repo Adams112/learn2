@@ -13,7 +13,7 @@ public class MessageDecoder extends ByteToMessageDecoder {
 		int len = in.readableBytes();
 		final byte[] array = new byte[len];
 		in.getBytes(in.readerIndex(), array, 0, len);
-		String content = new String(array, "GBK");
+		String content = new String(array);
 		String[] split = content.split("\\|");
 		
 		Message message = new Message();

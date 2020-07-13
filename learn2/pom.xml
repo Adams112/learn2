@@ -28,5 +28,7 @@
     <module>record</module>
     <module>util</module>
     <module>webdemo</module>
+    <module>jdk</module>
+    <module>velocity</module>
   </modules>
 </project>

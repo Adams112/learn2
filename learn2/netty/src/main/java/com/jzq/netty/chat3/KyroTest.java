@@ -11,13 +11,9 @@ import com.esotericsoftware.kryo.io.Output;
 public class KyroTest {
 	public static void main(String[] args) {
 		Kryo kryo = new Kryo();
-		kryo.register(Message.class);
 		
 		Mess m = new Mess();
-		m.setA(111);
-		m.setStr("aaa");
-		m.setStrs(null);
-		m.setO("aaa");
+		m.type = Type.A;;
 		
         ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
         Output output = new Output(byteArray);
@@ -42,40 +38,19 @@ public class KyroTest {
 	}
 	
 	static class Mess {
-		private int a;
-		private String str;
-		private Object o;
-		private String[] strs;
-		
-		public int getA() {
-			return a;
-		}
-		public void setA(int a) {
-			this.a = a;
-		}
-		public String getStr() {
-			return str;
-		}
-		public void setStr(String str) {
-			this.str = str;
-		}
-		public Object getO() {
-			return o;
-		}
-		public void setO(Object o) {
-			this.o = o;
-		}
-		public String[] getStrs() {
-			return strs;
-		}
-		public void setStrs(String[] strs) {
-			this.strs = strs;
-		}
+		Type type;
+
 		@Override
 		public String toString() {
-			return "Mess [a=" + a + ", str=" + str + ", o=" + o + ", strs=" + Arrays.toString(strs) + "]";
+			return "Mess [type=" + type + "]";
 		}
 		
 		
+		
+		
+	}
+	
+	static enum Type {
+		A, B, C;
 	}
 }

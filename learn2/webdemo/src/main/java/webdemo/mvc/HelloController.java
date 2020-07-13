@@ -2,6 +2,7 @@ package webdemo.mvc;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
@@ -47,5 +48,11 @@ public class HelloController {
 	@RequestMapping(path="/hello", params= "a=b")
 	public String func7() {
 		return "hello from /hello params";
+	}
+	
+	@RequestMapping("/null")
+	public String func8(@RequestParam String name) {
+		System.out.println(name);
+		return null;
 	}
 }

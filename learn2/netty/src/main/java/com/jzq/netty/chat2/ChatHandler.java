@@ -5,12 +5,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 public class ChatHandler extends ChannelInboundHandlerAdapter {
+	private int n = 1;
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
 	}
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+		System.out.println(n++);
+		System.out.println(Thread.currentThread());
+		
 		Message message = (Message) msg;
 		System.out.println(message);
 		if (message.getCmd().equalsIgnoreCase("login")) {
