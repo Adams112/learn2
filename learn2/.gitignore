@@ -3,3 +3,8 @@
 .classpath
 .settings/
 target/
+*.iml
+.gitignore
+.idea/
+
+work.md
