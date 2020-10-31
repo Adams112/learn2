@@ -30,5 +30,6 @@
     <module>webdemo</module>
     <module>jdk</module>
     <module>velocity</module>
+      <module>bytecode</module>
   </modules>
 </project>
