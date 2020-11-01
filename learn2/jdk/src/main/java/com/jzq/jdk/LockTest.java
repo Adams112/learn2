@@ -1,8 +1,10 @@
 package com.jzq.jdk;
 
+import java.util.concurrent.locks.LockSupport;
+
 public class LockTest {
     public static void main(String[] args) {
-        func();
+        park();
     }
 
     public static void func() {
@@ -27,6 +29,28 @@ public class LockTest {
                 e.printStackTrace();
             }
             System.out.println(Thread.currentThread().getName() + "exit");
+        }
+    }
+
+
+    public static void park() {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Thread.currentThread().interrupt();
+                System.out.println(Thread.currentThread().getName() + "interrupted");
+                System.out.println(Thread.currentThread().getName() + Thread.currentThread().isInterrupted());
+                LockSupport.park();
+                System.out.println(Thread.currentThread().getName() + "interrupted");
+            }
+        });
+
+
+        thread.start();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 }
