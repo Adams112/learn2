@@ -95,7 +95,7 @@ AQS实现了共享锁与独占锁，在锁的获取/释放上，有八个重要�
 - acquireInterruptibly(int arg)  
     获取独占锁，获取不到锁线程休眠，获取成功方法返回。获取过程中如果有中断抛异常  
     
-- tryAcquireNanos(int arg, long nanosTimeout)
+- tryAcquireNanos(int arg, long nanosTimeout)  
     获取独占锁，获取不到锁线程休眠，获取成功方法返回true。获取过程中如果有中断抛异常，时间限制到了还未获取到锁返回false  
 
 - acquireShared(int arg)  
@@ -114,26 +114,26 @@ AQS实现了共享锁与独占锁，在锁的获取/释放上，有八个重要�
     释放共享锁，锁完全释放后唤醒队列中第一个等待线程  
 
 ConditionObject中await/notify机制一共有七个重要方法，5个await方法和signal、signalAll方法
-- awaitUninterruptibly()
+- awaitUninterruptibly()  
     不响应中断一直等待，直到被其他线程signal。如果等待过程中被中断，则signal之后设置中断标志  
 
 除了awaitUninterruptibly之外，其他的await遇到中断都会处理。处理分两种情况，如果中断是在被signal之前，则抛异常；如果中断是signal之后，则设置标志位  
-- await()
+- await()  
     等待signal  
  
-- await(long time, TimeUnit unit)
+- await(long time, TimeUnit unit)  
     相对时间的等待
 
-- awaitNanos(long nanosTimeout)
+- awaitNanos(long nanosTimeout)  
     相对时间的等待
 
-- awaitUntil(Date deadline)
+- awaitUntil(Date deadline)  
     绝对时间等待
 
-- signal()
+- signal()  
     signal condition队列中第一个未被cancel的线程
 
-- signalAll()
+- signalAll()  
     signal所有未被cancel的线程
     
 ### 1.3.2 数据结构
@@ -158,7 +158,7 @@ AQS中有两个重要队列：1 sync队列，2 condition队列。sync队列是�
         SIGNAL。表示该线程释放锁或者取消时，需要唤醒队列里的线程。当一个线程进入sync队列后，只有确保会有其他线程唤醒自己，该线程才会block    
         Condition。该线程在condition队列中，只有被signal之后，才会回到sync队列  
         PROPAGATE。队列中线程获取到共享锁时，用来同步线程唤醒后面获取共享锁的线程  
-    - nextWaiter
+    - nextWaiter  
         两个作用。一个特定值SHARED = new Node()表示线程为共享模式；其他值表示等待同一个condition链表的下一个元素  
     
     Node有三个构造方法  
@@ -259,8 +259,10 @@ AQS中有两个重要队列：1 sync队列，2 condition队列。sync队列是�
     ```
 
 ### 1.3.4 独占锁的获取和释放
-独占锁的获取流程，首先tryAcquire，tryAcquire失败向队列中添加一个独占模式的Node，然后acquireQueued在适当的时候休眠，被唤醒后继续获取锁，
-获取到锁后判断获取锁期间是否有中断
+锁的获取和释放大部分都是相同的，主要区别在独占锁/共享锁、对异常的处理以及其他控制行为，例如确保tryAcquire抛异常的情况下删除锁的获取
+#### 1.3.4.1 acquire
+独占锁的获取流程，首先tryAcquire，tryAcquire是获取锁的逻辑，由子类实现。tryAcquire失败向队列中添加一个独占模式的Node；
+然后acquireQueued在适当的时候休眠，被唤醒后继续获取锁，获取成功后acquireQueued返回，如果期间有中断，则设置中断位
 ```
     public final void acquire(int arg) {
         if (!tryAcquire(arg) &&
@@ -269,11 +271,177 @@ AQS中有两个重要队列：1 sync队列，2 condition队列。sync队列是�
     }
 ```
 
+独占锁共享锁的addWaiter的逻辑和共享锁的是一样的，都是添加一个node到sync队列里，acquireQueued在for循环里面不断尝试获取锁，流程如下
+- 1、如果该节点的前面就是head，则尝试获取锁，获取成功了将自己设置为head，返回  
+- 2、如果前面不是head，或者获取锁不成功，则判断当前是否可以进入休眠（休眠前需要确保有线程唤醒自己）  
+- 3、如果可以休眠，则进入休眠，被唤醒后继续重复流程  
+- 4、如果不能休眠，则重复流程  
+- 5、如果任何形况下抛异常了，则取消获取锁  
+
+```
+    final boolean acquireQueued(final Node node, int arg) {
+        boolean failed = true;
+        try {
+            boolean interrupted = false;
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    failed = false;
+                    return interrupted;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    interrupted = true;
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+```
+
+流程1里面，会判断前面是不是head，是为了保证队列是先入先出FIFO的，即使是非公平锁，进入队列了也会保证公平性。head可以理解为当前持有锁的线程，
+但其实没有特别含义，第一个入sync队列的线程会初始化head，其他线程拿到锁会把自己设置为head，如果一个线程发现自己前面就是head，可能当前有别的线程持有锁，
+也可能没有线程持有锁（前一个线程释放锁了，但自己还没入队）  
+setHead方法就是普通方法，对队列的修改不涉及cas，因为能进入setHead方法的线程已经获取锁了，不需要cas  
+```
+    private void setHead(Node node) {
+        head = node;
+        node.thread = null;
+        node.prev = null;
+    }
+```
+
+线程进入休眠之前必须要确保有线程唤醒自己，流程2里面，shouldParkAfterFailedAcquire里判断前一个节点的waitStatus，有几种情况：
+- 1、如果是SIGNAL，已经确定可以休眠  
+- 2、如果大于0，CANCELLED，while循环清除掉所有CANCELLED节点（cancel时候一般会在队列中清除掉自己，特别情况才不会清除掉）  
+- 3、如果是其他的，只可能是0或者PROPAGATE了，这个时候cas修改为SIGNAL  
+
+2和3都会再次进入acquireQueued的，2循环2次，3循环一次。为什么要重试tryAcquire而不是cas为SIGNAL就可以休眠了？因为如果持有锁的线程在tryAcquire
+之后、cas设置waitStatus之前释放了锁，释放锁之后并不会唤醒该线程，必须确保tryAcquire时waitStatus是SIGNAL，才可以休眠  
+为什么2清除掉CANCELLED节点之后不直接cas设置为SIGNAL而直接返回false导致循环两遍？我也想不通  
+```
+    private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        int ws = pred.waitStatus;
+        if (ws == Node.SIGNAL)
+            /*
+             * This node has already set status asking a release
+             * to signal it, so it can safely park.
+             */
+            return true;
+        if (ws > 0) {
+            /*
+             * Predecessor was cancelled. Skip over predecessors and
+             * indicate retry.
+             */
+            do {
+                node.prev = pred = pred.prev;
+            } while (pred.waitStatus > 0);
+            pred.next = node;
+        } else {
+            /*
+             * waitStatus must be 0 or PROPAGATE.  Indicate that we
+             * need a signal, but don't park yet.  Caller will need to
+             * retry to make sure it cannot acquire before parking.
+             */
+            compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+        }
+        return false;
+    }
+```
+
+parkAndCheckInterrupt进入休眠，休眠结束返回是否中断  
+
+5如果获取锁失败了会cancelAcquire取消获取锁，除了清理sync队列之外，还要保证后面的节点一定能够被唤醒，如果不能够保证的话则唤醒后面的线程  
+```
+    // 用到了很多cas，失败了会怎么样？
+    private void cancelAcquire(Node node) {
+        // Ignore if node doesn't exist
+        if (node == null)
+            return;
+
+        node.thread = null;
+
+        // Skip cancelled predecessors
+        // 首先while循环删除前面的CANCELLED节点
+        Node pred = node.prev;
+        while (pred.waitStatus > 0)
+            node.prev = pred = pred.prev;
+
+        // predNext is the apparent node to unsplice. CASes below will
+        // fail if not, in which case, we lost race vs another cancel
+        // or signal, so no further action is necessary.
+        Node predNext = pred.next;
+
+        // Can use unconditional write instead of CAS here.
+        // After this atomic step, other Nodes can skip past us.
+        // Before, we are free of interference from other threads.
+        // 为什么不用cas？因为不管waitStatus被设置为什么，后面会确保后继节点一定能够被唤醒
+        node.waitStatus = Node.CANCELLED;
+
+        // If we are the tail, remove ourselves.
+        // 如果自己已经是tail了，也把自己清理掉
+        if (node == tail && compareAndSetTail(node, pred)) {
+            compareAndSetNext(pred, predNext, null);
+        } else {
+            // If successor needs signal, try to set pred's next-link
+            // so it will get one. Otherwise wake it up to propagate.
+            // 这里的判断比较复杂，这里的条件是确保node.next节点一定能够被唤醒，首先pred不能是head，如果是head无法确定当前head是否持有锁
+            // 其次pred的waitStatus要么本来就是SIGNAL、要么cas设置为SIGNAL
+            // 最后node.thead不能是null，确保这个线程是存在的
+            // 满足这些条件，cas把自己删除掉就能确保next能够被唤醒
+            // 为什么pred.thread还有可能是null？
+            int ws;
+            if (pred != head &&
+                ((ws = pred.waitStatus) == Node.SIGNAL ||
+                 (ws <= 0 && compareAndSetWaitStatus(pred, ws, Node.SIGNAL))) &&
+                pred.thread != null) {
+                Node next = node.next;
+                if (next != null && next.waitStatus <= 0)
+                    compareAndSetNext(pred, predNext, next);
+            } else {
+                // 如果不能确保next能够被唤醒的话，就唤醒后续节点，让他自己来确保自己能够被唤醒
+                unparkSuccessor(node);
+            }
+
+            node.next = node; // help GC
+        }
+    }
+```
+
+#### 1.3.4.2 acquireInterruptibly
+
+
+#### 1.3.4.3 tryAcquireNanos
+
+#### 1.3.4.4 release
 
 ### 1.3.5 共享锁的获取和释放  
+#### 1.3.5.1 acquireShared
+
+#### 1.3.5.2 acquireSharedInterruptibly
+
+#### 1.3.5.3 tryAcquireSharedNanos
+
+#### 1.3.5.4 releaseShared
+
 
 ### 1.3.6 await/signal机制  
+#### 1.3.6.1 await()
 
+#### 1.3.6.2 await(long time, TimeUnit unit)
+
+#### 1.3.6.3 awaitNanos(long nanosTimeout)
+
+#### 1.3.6.4 awaitUntil(Date deadline)
+
+#### 1.3.6.5 awaitUninterruptibly()
+
+#### 1.3.6.6 signal()
+
+#### 1.3.6.7 signalAll()
 
 ## 1.4 ReentrantLock
 ## 1.5 ReentrantReadWriteLock
