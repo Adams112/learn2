@@ -412,20 +412,151 @@ parkAndCheckInterrupt进入休眠，休眠结束返回是否中断
 ```
 
 #### 1.3.4.2 acquireInterruptibly
+逻辑和acquire几乎一样，区别在于对中断的处理。acquire方法在获取锁期间不响应中断，获取锁成功后设置中断标志位。acquireInterruptibly响应中断，
+遇到中断抛出异常。  
+```
+    public final void acquireInterruptibly(int arg)
+            throws InterruptedException {
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        if (!tryAcquire(arg))
+            doAcquireInterruptibly(arg);
+    }
 
+    private void doAcquireInterruptibly(int arg)
+        throws InterruptedException {
+        final Node node = addWaiter(Node.EXCLUSIVE);
+        boolean failed = true;
+        try {
+            for (;;) {
+                final Node p = node.predecessor();
+                 if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    failed = false;
+                    return;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    throw new InterruptedException();
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+```
 
 #### 1.3.4.3 tryAcquireNanos
+逻辑和acquire也是一样，区别在于休眠时设置时长，并且也会响应中断。其实就是使用LockSupport休眠时设置了休眠时长。这个方法用来实现了Lock里面的
+tryLock(long, TimeUnit)方法。  
+```
+    public final boolean tryAcquireNanos(int arg, long nanosTimeout)
+            throws InterruptedException {
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        return tryAcquire(arg) ||
+            doAcquireNanos(arg, nanosTimeout);
+    }
+
+    private boolean doAcquireNanos(int arg, long nanosTimeout)
+            throws InterruptedException {
+        if (nanosTimeout <= 0L)
+            return false;
+        final long deadline = System.nanoTime() + nanosTimeout;
+        final Node node = addWaiter(Node.EXCLUSIVE);
+        boolean failed = true;
+        try {
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    failed = false;
+                    return true;
+                }
+                nanosTimeout = deadline - System.nanoTime();
+                if (nanosTimeout <= 0L)
+                    return false;
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    nanosTimeout > spinForTimeoutThreshold)
+                    LockSupport.parkNanos(this, nanosTimeout);
+                if (Thread.interrupted())
+                    throw new InterruptedException();
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+```
 
 #### 1.3.4.4 release
+首先释放锁tryRelease，然后判断锁是否完全释放了，如果完全释放了则唤醒后继线程  
+```
+    public final boolean release(int arg) {
+        if (tryRelease(arg)) {
+            Node h = head;
+            if (h != null && h.waitStatus != 0)
+                unparkSuccessor(h);
+            return true;
+        }
+        return false;
+    }
+```
 
-### 1.3.5 共享锁的获取和释放  
-#### 1.3.5.1 acquireShared
+### 1.3.5 共享锁的获取和释放 
+#### 1.3.5.1 tryAcquireShared
+这是子类需要实现的方法，该方法返回有三种情况，涉及到共享锁获取成功后是否需要传播  
+- 返回为负，获取锁失败  
+- 返回为0， 获取锁成功，但下一次获取锁一定不成功  
+- 返回为正，获取锁成功，下一次获取锁也会成功  
 
-#### 1.3.5.2 acquireSharedInterruptibly
+#### 1.3.5.2 acquireShared
+acquireShared获取共享锁，不响应中断，如果有中断则获取结束之后设置标志位。首先尝试获取锁，获取不成功进入队列，在队列中获取锁成功后，根据
+tryAcquireShared的返回值确定共享锁的获取是否需要传播，如果需要传播的话，则唤醒后继线程  
+doAcquireShared首先添加一个SHARED模式的节点到队列里面，然后for循环开始获取锁。与独享锁获取类似，当前任节点是head时才会进行获取锁流程，
+获取成功后，setHeadAndPropagate方法将会唤醒后面的获取共享锁的线程
+```
+    public final void acquireShared(int arg) {
+        if (tryAcquireShared(arg) < 0)
+            doAcquireShared(arg);
+    }
 
-#### 1.3.5.3 tryAcquireSharedNanos
+    private void doAcquireShared(int arg) {
+        final Node node = addWaiter(Node.SHARED);
+        boolean failed = true;
+        try {
+            boolean interrupted = false;
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head) {
+                    int r = tryAcquireShared(arg);
+                    if (r >= 0) {
+                        setHeadAndPropagate(node, r);
+                        p.next = null; // help GC
+                        if (interrupted)
+                            selfInterrupt();
+                        failed = false;
+                        return;
+                    }
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    interrupted = true;
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+```
 
-#### 1.3.5.4 releaseShared
+#### 1.3.5.3 acquireSharedInterruptibly
+
+#### 1.3.5.4 tryAcquireSharedNanos
+
+#### 1.3.5.5 releaseShared
 
 
 ### 1.3.6 await/signal机制  
