@@ -1,20 +1,27 @@
 package com.jzq.jdk;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PatternTest {
     public static void main(String[] args) {
+        Pattern pattern1 = Pattern.compile("<body><h1>.*</h1></body>");
+        Pattern pattern2 = Pattern.compile("(<body>(<h1>.*</h1>)</body>)");
+        Pattern pattern3 = Pattern.compile("(<(?<b>body)>(<(?<h>h1)>.*</\\k<h>>)</\\k<b>>)");
 
-        boolean b1 = Pattern.matches("\\\\", "\\");
+        String text = "<body><h1>its h1</h1></body>";
+        Matcher[] matchers = new Matcher[3];
+        matchers[0] = pattern1.matcher(text);
+        matchers[1] = pattern2.matcher(text);
+        matchers[2] = pattern3.matcher(text);
 
-        // \143是java的转义，得到字符c。\\0143是匹配由八进制143表示的字符
-        boolean b2 = Pattern.matches("\143", "" + 'c');
-        boolean b3 = Pattern.matches("\\0143", "" + 'c');
-
-
-        boolean b4 = Pattern.matches("\t", "" + '\u0009');
-        boolean b5 = Pattern.matches("\\t", "" + '\u0009');
-
-        System.out.println();
+        for (Matcher matcher : matchers) {
+            matcher.find();
+            System.out.println("groupCount: " + matcher.groupCount());
+            for (int i = 0; i <= matcher.groupCount(); i++) {
+                System.out.println(matcher.group(i));
+            }
+            System.out.println();
+        }
     }
 }
